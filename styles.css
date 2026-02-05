@@ -234,3 +234,4 @@ body { margin: 0; font-family: 'Inter', Roboto, sans-serif; background: var(--bg
 
 .hidden { display: none !important; }
 .row { display: flex; align-items: center; gap: 8px; }
+.theme-item { display: flex; flex-direction: column; gap: 8px; } .theme-header { display: flex; justify-content: space-between; align-items: flex-start; } .theme-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; } .theme-btn { padding: 4px; border-radius: 4px; border: 1px solid var(--border); background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; color: var(--text-muted); } .theme-btn:hover { background: #f1f3f4; color: var(--primary); } .theme-btn.danger:hover { color: var(--danger); background: #fce8e6; }

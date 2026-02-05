@@ -122,11 +122,9 @@
         // Editor Fields
         titleEn: document.getElementById('themeTitleEn'),
         titleZh: document.getElementById('themeTitleZh'),
-        visibility: document.getElementById('themeVisibility'),
         key: document.getElementById('themeKey'),
         kind: document.getElementById('themeKind'),
         suggestions: document.getElementById('builtinKeySuggestions'),
-        btnDelete: document.getElementById('btnDeleteTheme'),
 
         // Pages
         pageCount: document.getElementById('pageCount'),
@@ -145,7 +143,6 @@
         statusMsg: document.getElementById('statusMsg'),
         exportActions: document.getElementById('exportActions'),
         btnCloseOverlay: document.getElementById('btnCloseOverlay'),
-        dlZip: document.getElementById('dlZip'),
         dlZip: document.getElementById('dlZip'),
         dlJson: document.getElementById('dlJson'),
 
@@ -166,11 +163,8 @@
 
     function setLanguage(lang) {
         state.lang = lang;
-        dom.btnLang.textContent = lang === 'zh' ? 'EN' : 'ZH'; // Show "Switch to..." or current? Usually switch button shows current or target. User said "Switch..". Let's show current. Or toggle.
-        // User request: "新增一個 語系按鈕 可切換 中文 跟 英文語系"
-        // Let's make button text indicate what it IS, or what it WILL BE. 
-        // Standard: Display current lang code. 
-        dom.btnLang.textContent = lang === 'zh' ? '中' : 'EN';
+        // dom.btnLang.textContent = lang === 'zh' ? '中' : 'EN'; // Don't overwrite icon
+        dom.btnLang.title = lang === 'zh' ? 'Switch to English' : '切換至中文';
         
         // Update Static Elements
         document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -289,14 +283,6 @@
         // Editor Binding
         dom.titleEn.addEventListener('input', (e) => updateActiveTheme('titleEn', e.target.value));
         dom.titleZh.addEventListener('input', (e) => updateActiveTheme('titleZh', e.target.value));
-        dom.visibility.addEventListener('change', (e) => {
-             updateActiveTheme('visible', e.target.checked ? 'VISIBLE' : 'HIDDEN');
-             // Update Icon
-             const icon = dom.visibility.nextElementSibling; // .toggle-icon
-             if (icon && icon.classList.contains('toggle-icon')) {
-                 icon.textContent = e.target.checked ? 'visibility' : 'visibility_off';
-             }
-        });
 
         // Key Change -> Trigger Sync
         dom.key.addEventListener('input', (e) => {
@@ -320,8 +306,8 @@
             });
         });
 
-        // Delete
-        dom.btnDelete.addEventListener('click', deleteActiveTheme);
+        // Delete - Removed from header
+        // dom.btnDelete.addEventListener('click', deleteActiveTheme);
 
         // Global
         dom.btnExport.addEventListener('click', exportProject);
@@ -396,7 +382,6 @@
 
         if (field === 'titleEn') theme.title.en = value;
         if (field === 'titleZh') theme.title.zh = value;
-        if (field === 'visible') theme.visibility = value;
         if (field === 'key') theme.key = value;
         if (field === 'kind') theme.kind = value;
 
@@ -468,11 +453,34 @@
     }
 
     function deleteActiveTheme() {
+        // Obsolete, keeping for compatibility if needed, but UI button removed
+        if (state.activeThemeIndex < 0) return;
+        deleteTheme(state.activeThemeIndex);
+    }
+
+    function deleteTheme(idx) {
         if (!confirm(t('confirm_delete'))) return;
-        state.themes.splice(state.activeThemeIndex, 1);
-        state.activeThemeIndex = -1;
+        state.themes.splice(idx, 1);
+        
+        // Adjust active index
+        if (state.activeThemeIndex === idx) {
+            state.activeThemeIndex = -1;
+        } else if (state.activeThemeIndex > idx) {
+            state.activeThemeIndex--;
+        }
+
         renderThemeList();
         updateEditorState();
+    }
+
+    function toggleThemeVisibility(idx) {
+        const theme = state.themes[idx];
+        if (!theme) return;
+        theme.visibility = (theme.visibility === 'HIDDEN') ? 'VISIBLE' : 'HIDDEN';
+        renderThemeList();
+        if (state.activeThemeIndex === idx) {
+            updateEditorState(); // Update main view if active
+        }
     }
 
     // --- Rendering ---
@@ -483,21 +491,49 @@
             const el = document.createElement('div');
             el.className = `theme-item ${idx === state.activeThemeIndex ? 'active' : ''} ${theme.visibility === 'HIDDEN' ? 'hidden-theme' : ''}`;
 
-            const title = theme.title.en || theme.title.zh || (theme.key ? theme.key : t('untitled_theme'));
+            const title = theme.title[state.lang] || theme.title.en || theme.title.zh || (theme.key ? theme.key : t('untitled_theme'));
             const sub = theme.kind === 'builtin_extend' ? t('extend') : t('custom');
 
+            // Icons
+            const visIcon = theme.visibility === 'HIDDEN' ? 'visibility_off' : 'visibility';
+            
             el.innerHTML = `
-                <div class="t-title">${escapeHtml(title)}</div>
-                <div class="t-sub">
-                    <span>${sub}</span>
-                    <span>${theme.items.length} ${t('pages_count')}</span>
+                <div style="flex:1">
+                    <div class="t-title">${escapeHtml(title)}</div>
+                    <div class="t-sub">
+                        <span>${sub}</span>
+                        <span>${theme.items.length} ${t('pages_count')}</span>
+                    </div>
+                </div>
+                <div class="theme-actions">
+                    <button class="theme-btn btn-vis" title="${t('visible')}"><span class="material-symbols-outlined" style="font-size:18px">${visIcon}</span></button>
+                    <button class="theme-btn btn-del danger" title="${t('delete')}"><span class="material-symbols-outlined" style="font-size:18px">delete</span></button>
                 </div>
             `;
-            el.addEventListener('click', () => {
+            
+            // Item Click (Selection)
+            el.addEventListener('click', (e) => {
+                // Ignore if clicked on actions
+                if (e.target.closest('.theme-actions')) return;
                 state.activeThemeIndex = idx;
                 renderThemeList();
                 updateEditorState();
             });
+
+            // Action Buttons
+            const btnVis = el.querySelector('.btn-vis');
+            const btnDel = el.querySelector('.btn-del');
+
+            btnVis.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleThemeVisibility(idx);
+            });
+
+            btnDel.addEventListener('click', (e) => {
+                 e.stopPropagation();
+                 deleteTheme(idx);
+            });
+
             dom.themeList.appendChild(el);
         });
     }
@@ -512,13 +548,14 @@
             // Populate inputs
             dom.titleEn.value = theme.title.en || '';
             dom.titleZh.value = theme.title.zh || '';
-            dom.visibility.checked = (theme.visibility !== 'HIDDEN');
-            
-            // Update Toggle Icon state
-            const icon = dom.visibility.nextElementSibling;
-            if (icon && icon.classList.contains('toggle-icon')) {
-                 icon.textContent = (theme.visibility !== 'HIDDEN') ? 'visibility' : 'visibility_off';
-            }
+            // Visibility control moved to sidebar, so this is obsolete
+            // if (dom.visibility) {
+            //    dom.visibility.checked = (theme.visibility !== 'HIDDEN');
+            //    const icon = dom.visibility.nextElementSibling;
+            //    if (icon && icon.classList.contains('toggle-icon')) {
+            //         icon.textContent = (theme.visibility !== 'HIDDEN') ? 'visibility' : 'visibility_off';
+            //    }
+            // }
 
             dom.key.value = theme.key || '';
             dom.kind.value = theme.kind || 'builtin_extend';
@@ -603,8 +640,8 @@
                     </div>
                 </div>
                 <div class="card-form">
-                    <input type="text" class="card-input zh" placeholder="Title (ZH)" value="${escapeHtml(item.title.zh||'')}" />
-                    <input type="text" class="card-input en" placeholder="Title (EN)" value="${escapeHtml(item.title.en||'')}" />
+                    <input type="text" class="card-input zh" placeholder="${t('theme_name_zh')}" value="${escapeHtml(item.title.zh||'')}" />
+                    <input type="text" class="card-input en" placeholder="${t('theme_name_en')}" value="${escapeHtml(item.title.en||'')}" />
                     ${ item._isBuiltin ? `<div style="font-size:10px;color:gray;text-align:right">${item.id}</div>` : '' }
                 </div>
             `;
