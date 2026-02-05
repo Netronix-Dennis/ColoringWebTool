@@ -1,0 +1,171 @@
+{
+  "schema_version": "1.0",
+  "updated_at": "2024-01-01T00:00:00Z",
+  "assets": {
+    "zip_url": "",
+    "sha256": "",
+    "files_base_url": "",
+    "files": {}
+  },
+  "groups": [
+    {
+      "group_key": "mascot",
+      "group_kind": "builtin_extend",
+      "type": "PAGE",
+      "title": {
+        "en": "Mascot",
+        "zh": "吉祥物"
+      },
+      "items": [
+        {
+          "id": "16_waving",
+          "title": {"en": "Waving"},
+          "files": {"portrait": "coloring/mascot/16_waving.png"}
+        },
+        {
+          "id": "17_surfing_net",
+          "title": {"en": "Surfing"},
+          "files": {"portrait": "coloring/mascot/17_surfing_net.png"}
+        },
+        {
+          "id": "18_okapi",
+          "title": {"en": "Okapi"},
+          "files": {"portrait": "coloring/mascot/18_okapi.png"}
+        },
+        {
+          "id": "19_reading_half",
+          "title": {"en": "Reading"},
+          "files": {"portrait": "coloring/mascot/19_reading_half.png"}
+        },
+        {
+          "id": "20_reading_side",
+          "title": {"en": "Reading (Side)"},
+          "files": {"portrait": "coloring/mascot/20_reading_side.png"}
+        }
+      ]
+    },
+    {
+      "group_key": "princess",
+      "group_kind": "builtin_extend",
+      "type": "PAGE",
+      "title": {
+        "en": "Princess",
+        "zh": "公主系列"
+      },
+      "items": [
+        {
+          "id": "10_elephant",
+          "title": {"en": "Elephant"},
+          "files": {"portrait": "coloring/princess/10_elephant.png"}
+        },
+        {
+          "id": "11_unicorn",
+          "title": {"en": "Unicorn"},
+          "files": {"portrait": "coloring/princess/11_unicorn.png"}
+        },
+        {
+          "id": "12_fairy",
+          "title": {"en": "Fairy"},
+          "files": {"portrait": "coloring/princess/12_fairy.png"}
+        },
+        {
+          "id": "13_princess",
+          "title": {"en": "Princess 1"},
+          "files": {"portrait": "coloring/princess/13_princess.png"}
+        },
+        {
+          "id": "14_princess",
+          "title": {"en": "Princess 2"},
+          "files": {"portrait": "coloring/princess/14_princess.png"}
+        },
+        {
+          "id": "15_princess",
+          "title": {"en": "Princess 3"},
+          "files": {"portrait": "coloring/princess/15_princess.png"}
+        }
+      ]
+    },
+    {
+      "group_key": "animals",
+      "group_kind": "builtin_extend",
+      "type": "PAGE",
+      "title": {
+        "en": "Animals",
+        "zh": "可愛動物"
+      },
+      "items": [
+        {
+          "id": "03_dog",
+          "title": {"en": "Dog"},
+          "files": {"portrait": "coloring/animals/03_dog.png"}
+        },
+        {
+          "id": "05_mouse",
+          "title": {"en": "Mouse"},
+          "files": {"portrait": "coloring/animals/05_mouse.png"}
+        },
+        {
+          "id": "06_deer",
+          "title": {"en": "Deer"},
+          "files": {"portrait": "coloring/animals/06_deer.png"}
+        },
+        {
+          "id": "07_hedgehog",
+          "title": {"en": "Hedgehog"},
+          "files": {"portrait": "coloring/animals/07_hedgehog.png"}
+        },
+        {
+          "id": "08_monkey",
+          "title": {"en": "Monkey"},
+          "files": {"portrait": "coloring/animals/08_monkey.png"}
+        },
+        {
+          "id": "09_wolf",
+          "title": {"en": "Wolf"},
+          "files": {"portrait": "coloring/animals/09_wolf.png"}
+        }
+      ]
+    },
+    {
+      "group_key": "bookfair",
+      "group_kind": "builtin_extend",
+      "type": "PAGE",
+      "title": {
+        "en": "Bookfair",
+        "zh": "國際書展"
+      },
+      "items": [
+        {
+          "id": "21_ufo",
+          "title": {"en": "UFO"},
+          "files": {"portrait": "coloring/bookfair/21_ufo.png"}
+        },
+        {
+          "id": "22_astronaut",
+          "title": {"en": "Astronaut"},
+          "files": {"portrait": "coloring/bookfair/22_astronaut.png"}
+        },
+        {
+          "id": "23_camping",
+          "title": {"en": "Camping"},
+          "files": {"portrait": "coloring/bookfair/23_camping.png"}
+        },
+        {
+          "id": "24_capybara",
+          "title": {"en": "Capybara"},
+          "files": {"portrait": "coloring/bookfair/24_capybara.png"}
+        },
+        {
+          "id": "25_nemo",
+          "title": {"en": "Nemo"},
+          "files": {"portrait": "coloring/bookfair/25_nemo.png"}
+        },
+        {
+          "id": "26_underwater_world",
+          "title": {"en": "Underwater"},
+          "files": {"portrait": "coloring/bookfair/26_underwater_world.png"}
+        }
+      ]
+    }
+  ]
+}

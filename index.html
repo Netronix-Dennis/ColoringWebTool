@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Coloring Studio</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app">
+    <!-- Sidebar: Theme List -->
+    <aside class="sidebar">
+      <header class="sb-header">
+        <h2>Coloring Studio</h2>
+        <div class="row">
+             <button id="btnNewTheme" class="btn-icon" title="New Theme">＋</button>
+        </div>
+      </header>
+      <div class="sb-content">
+        <div id="themeList" class="theme-list">
+          <!-- Theme items will be injected here -->
+        </div>
+      </div>
+      <footer class="sb-footer">
+        <button id="btnImportProject" class="btn secondary full">Import Project</button>
+        <button id="btnLoadAssets" class="btn secondary full hidden" title="Load 'assets' folder to bypass browser blocking">📂 Load Assets (Fix Export)</button>
+        <button id="btnExport" class="btn primary full">Export Package</button>
+        <input id="fileLoadAssets" type="file" webkitdirectory directory multiple hidden />
+        <input id="fileImport" type="file" accept=".zip,application/zip" hidden />
+      </footer>
+    </aside>
+
+    <!-- Main Content: Editor -->
+    <main class="editor">
+      <div id="welcomeState" class="welcome-screen">
+        <h3>Select or Create a Theme to start</h3>
+        <p>You can import an existing project or start from scratch.</p>
+      </div>
+
+      <div id="editorContent" class="editor-content hidden">
+        <!-- Editor Toolbar -->
+        <header class="editor-header">
+            <div class="header-row">
+                <div class="input-group large">
+                    <input id="themeTitleEn" type="text" placeholder="Theme Name (EN)" class="h2-input" />
+                    <input id="themeTitleZh" type="text" placeholder="中文名稱 (ZH)" class="h3-input" />
+                </div>
+                <div class="actions">
+                    <label class="toggle-label">
+                        <input id="themeVisibility" type="checkbox" checked />
+                        <span class="toggle-text">Visible</span>
+                    </label>
+                    <button id="btnDeleteTheme" class="btn danger">Delete</button>
+                </div>
+            </div>
+            <div class="header-row settings">
+                <label>
+                    <span>ID / Key</span>
+                    <input id="themeKey" type="text" placeholder="e.g. animals" />
+                </label>
+                <label>
+                    <span>Type</span>
+                    <select id="themeKind">
+                        <option value="builtin_extend">Extend Builtin</option>
+                        <option value="dynamic_new">New Custom Theme</option>
+                    </select>
+                </label>
+                <!-- Builtin Key Suggestions (only visible if extend) -->
+                <div id="builtinKeySuggestions" class="chips">
+                    <button class="chip" data-val="mascot">mascot</button>
+                    <button class="chip" data-val="princess">princess</button>
+                    <button class="chip" data-val="animals">animals</button>
+                    <button class="chip" data-val="bookfair">bookfair</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Pages Grid -->
+        <section class="pages-section">
+            <div class="pages-header">
+                <h4>Pages (<span id="pageCount">0</span>)</h4>
+                <div class="hint">Drag images to reorder or add new ones</div>
+            </div>
+            <div id="pagesGrid" class="pages-grid">
+                <!-- Pages injected here -->
+
+                <!-- Drop Zone at the end -->
+                <div id="dropZone" class="page-card drop-target">
+                    <div class="plus">＋</div>
+                    <div class="label">Add Pages<br><span style="font-size:10px;opacity:0.6">Drag Images Here</span></div>
+                    <input id="fileAddPages" type="file" accept="image/png,image/jpeg" multiple hidden />
+                </div>
+            </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- Export Modal / Status Overlay (Simple) -->
+    <div id="statusOverlay" class="overlay hidden">
+        <div class="card">
+            <h3 id="statusTitle">Processing...</h3>
+            <p id="statusMsg"></p>
+            <div id="exportActions" class="actions hidden" style="flex-direction: column; gap: 16px; align-items: stretch;">
+
+                <div class="export-opt">
+                    <div style="font-weight:600; margin-bottom:4px; text-align:left">1. Resume Editing</div>
+                    <div style="font-size:12px; color:#666; margin-bottom:8px; text-align:left">Save this file to continue editing later. Contains <b>project.json</b> and assets.</div>
+                    <a id="dlZip" class="btn secondary full">Download Source Code (.zip)</a>
+                </div>
+
+                <div class="export-opt">
+                    <div style="font-weight:600; margin-bottom:4px; text-align:left">2. Publish to App (OTA)</div>
+                    <div style="font-size:12px; color:#666; margin-bottom:8px; text-align:left">Upload contents to server for App update. Contains <b>manifest.json</b> and assets.</div>
+                    <a id="dlOta" class="btn primary full">Download OTA Package (.zip)</a>
+                </div>
+
+                <button id="btnCloseOverlay" class="btn text" style="margin-top:8px">Close</button>
+            </div>
+        </div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
