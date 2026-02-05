@@ -5,12 +5,116 @@
         activeThemeIndex: -1,
         builtinManifest: null,
         builtinGroups: new Map(),
-        fileCache: new Map() // relativePath/name -> File object
+        fileCache: new Map(), // relativePath/name -> File object
+        lang: 'zh' // Default Language
     };
+
+    const TRANSLATIONS = {
+        en: {
+            new_theme: "New Theme",
+            import_project: "Import Project",
+            load_assets: "📂 Load Assets (Fix Export)",
+            load_assets_tooltip: "Load 'assets' folder to bypass browser blocking",
+            export_package: "Export Package",
+            welcome_title: "Select or Create a Theme to start",
+            welcome_desc: "You can import an existing project or start from scratch.",
+            theme_name_en: "Theme Name (EN)",
+            theme_name_zh: "Theme Name (ZH)",
+            visible: "Visible",
+            delete: "Delete",
+            id_key: "ID / Key",
+            type: "Type",
+            extend_builtin: "Extend Builtin",
+            new_custom_theme: "New Custom Theme",
+            pages: "Pages",
+            drag_hint: "Drag images to reorder or add new ones",
+            add_pages: "Add Pages",
+            drag_images_here: "Drag Images Here",
+            opt_resume: "1. Resume Editing",
+            opt_resume_desc: "Save this file to continue editing later. Contains <b>project.json</b> and assets.",
+            download_source_zip: "Download Source Code (.zip)",
+            opt_publish: "2. Publish to App (OTA)",
+            opt_publish_desc: "Upload contents to server for App update. Contains <b>manifest.json</b> and assets.",
+            download_ota_zip: "Download OTA Package (.zip)",
+            close: "Close",
+            
+            // Dynamic
+            untitled_theme: "Untitled Theme",
+            extend: "Extend",
+            custom: "Custom",
+            pages_count: "pages",
+            confirm_delete: "Are you sure you want to delete this theme?",
+            cached_files: "Cached {0} files. Export should now work.",
+            export_ready: "Export Ready",
+            processing: "Processing...",
+            done: "Done",
+            generating_package: "Generating Package...",
+            loading_project: "Loading Project...",
+            import_failed: "Import Failed: ",
+            show: "Show",
+            hide: "Hide",
+            remove: "Remove"
+        },
+        zh: {
+            new_theme: "新增主題",
+            import_project: "匯入專案",
+            load_assets: "📂 載入資源 (修復匯出)",
+            load_assets_tooltip: "載入 'assets' 資料夾以繞過瀏覽器限制",
+            export_package: "匯出打包",
+            welcome_title: "選擇或建立一個主題以開始",
+            welcome_desc: "您可以匯入現有專案或從頭開始。",
+            theme_name_en: "主題名稱 (英文)",
+            theme_name_zh: "主題名稱 (中文)",
+            visible: "可見",
+            delete: "刪除",
+            id_key: "ID / 關鍵字",
+            type: "類型",
+            extend_builtin: "擴充內建 (Extend)",
+            new_custom_theme: "新建自訂主題 (Custom)",
+            pages: "頁面",
+            drag_hint: "拖曳圖片以重新排序或新增",
+            add_pages: "新增頁面",
+            drag_images_here: "拖曳圖片至此",
+            opt_resume: "1. 繼續編輯 (來源檔)",
+            opt_resume_desc: "儲存此檔案以便日後繼續編輯。包含 <b>project.json</b> 與資源檔。",
+            download_source_zip: "下載原始碼 (.zip)",
+            opt_publish: "2. 發布至 App (OTA)",
+            opt_publish_desc: "上傳至伺服器供 App 更新使用。包含 <b>manifest.json</b> 與資源檔。",
+            download_ota_zip: "下載 OTA 更新包 (.zip)",
+            close: "關閉",
+
+            // Dynamic
+            untitled_theme: "未命名主題",
+            extend: "擴充",
+            custom: "自訂",
+            pages_count: "頁",
+            confirm_delete: "您確定要刪除此主題嗎？",
+            cached_files: "已快取 {0} 個檔案。匯出功能現在應可正常運作。",
+            export_ready: "匯出準備就緒",
+            processing: "處理中...",
+            done: "完成",
+            generating_package: "正在產生打包...",
+            loading_project: "載入專案中...",
+            import_failed: "匯入失敗: ",
+            show: "顯示",
+            hide: "隱藏",
+            remove: "移除"
+        }
+    };
+
+    function t(key, ...args) {
+        const dict = TRANSLATIONS[state.lang] || TRANSLATIONS['en'];
+        let val = dict[key] || key;
+        args.forEach((arg, idx) => {
+            val = val.replace(`{${idx}}`, arg);
+        });
+        return val;
+    }
 
     // --- DOM Elements ---
     const dom = {
         themeList: document.getElementById('themeList'),
+        btnLang: document.getElementById('btnLang'), // New
         btnNewTheme: document.getElementById('btnNewTheme'),
         welcomeScreen: document.getElementById('welcomeState'),
         editorContent: document.getElementById('editorContent'),
@@ -55,8 +159,44 @@
         bindEvents();
         // Skip fetch, use inlined data
         loadBuiltinManifest();
+        setLanguage('zh'); // Default to Chinese
         renderThemeList();
         updateEditorState();
+    }
+
+    function setLanguage(lang) {
+        state.lang = lang;
+        dom.btnLang.textContent = lang === 'zh' ? 'EN' : 'ZH'; // Show "Switch to..." or current? Usually switch button shows current or target. User said "Switch..". Let's show current. Or toggle.
+        // User request: "新增一個 語系按鈕 可切換 中文 跟 英文語系"
+        // Let's make button text indicate what it IS, or what it WILL BE. 
+        // Standard: Display current lang code. 
+        dom.btnLang.textContent = lang === 'zh' ? '中' : 'EN';
+        
+        // Update Static Elements
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.dataset.i18n;
+            if (TRANSLATIONS[lang][key]) {
+                el.innerHTML = TRANSLATIONS[lang][key]; // innerHTML to support <b>
+            }
+        });
+        document.querySelectorAll('[data-i18n-title]').forEach(el => {
+            const key = el.dataset.i18nTitle;
+            if (TRANSLATIONS[lang][key]) {
+                el.title = TRANSLATIONS[lang][key];
+            }
+        });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+            const key = el.dataset.i18nPlaceholder;
+            if (TRANSLATIONS[lang][key]) {
+                el.placeholder = TRANSLATIONS[lang][key];
+            }
+        });
+
+        // Re-render components that include text
+        renderThemeList();
+        if (state.activeThemeIndex >= 0) {
+             renderPages(); // Actions buttons have text/tooltip
+        }
     }
 
     function loadBuiltinManifest() {
@@ -137,6 +277,9 @@
     function bindEvents() {
         // Sidebar
         dom.btnNewTheme.addEventListener('click', createNewTheme);
+        dom.btnLang.addEventListener('click', () => {
+             setLanguage(state.lang === 'zh' ? 'en' : 'zh');
+        });
 
         // Image Import
         dom.dropZone.addEventListener('click', () => dom.fileAddPages.click());
@@ -146,7 +289,14 @@
         // Editor Binding
         dom.titleEn.addEventListener('input', (e) => updateActiveTheme('titleEn', e.target.value));
         dom.titleZh.addEventListener('input', (e) => updateActiveTheme('titleZh', e.target.value));
-        dom.visibility.addEventListener('change', (e) => updateActiveTheme('visible', e.target.checked ? 'VISIBLE' : 'HIDDEN'));
+        dom.visibility.addEventListener('change', (e) => {
+             updateActiveTheme('visible', e.target.checked ? 'VISIBLE' : 'HIDDEN');
+             // Update Icon
+             const icon = dom.visibility.nextElementSibling; // .toggle-icon
+             if (icon && icon.classList.contains('toggle-icon')) {
+                 icon.textContent = e.target.checked ? 'visibility' : 'visibility_off';
+             }
+        });
 
         // Key Change -> Trigger Sync
         dom.key.addEventListener('input', (e) => {
@@ -202,7 +352,7 @@
                 }
                 count++;
             }
-            showStatus(`Cached ${count} files. Export should now work.`, true);
+            showStatus(t('cached_files', count), true);
             dom.btnLoadAssets.classList.add('success');
             setTimeout(() => dom.overlay.classList.add('hidden'), 2000);
         });
@@ -318,7 +468,7 @@
     }
 
     function deleteActiveTheme() {
-        if (!confirm('Are you sure you want to delete this theme?')) return;
+        if (!confirm(t('confirm_delete'))) return;
         state.themes.splice(state.activeThemeIndex, 1);
         state.activeThemeIndex = -1;
         renderThemeList();
@@ -333,14 +483,14 @@
             const el = document.createElement('div');
             el.className = `theme-item ${idx === state.activeThemeIndex ? 'active' : ''} ${theme.visibility === 'HIDDEN' ? 'hidden-theme' : ''}`;
 
-            const title = theme.title.en || theme.title.zh || (theme.key ? theme.key : 'Untitled Theme');
-            const sub = theme.kind === 'builtin_extend' ? 'Extend' : 'Custom';
+            const title = theme.title.en || theme.title.zh || (theme.key ? theme.key : t('untitled_theme'));
+            const sub = theme.kind === 'builtin_extend' ? t('extend') : t('custom');
 
             el.innerHTML = `
                 <div class="t-title">${escapeHtml(title)}</div>
                 <div class="t-sub">
                     <span>${sub}</span>
-                    <span>${theme.items.length} pages</span>
+                    <span>${theme.items.length} ${t('pages_count')}</span>
                 </div>
             `;
             el.addEventListener('click', () => {
@@ -363,6 +513,13 @@
             dom.titleEn.value = theme.title.en || '';
             dom.titleZh.value = theme.title.zh || '';
             dom.visibility.checked = (theme.visibility !== 'HIDDEN');
+            
+            // Update Toggle Icon state
+            const icon = dom.visibility.nextElementSibling;
+            if (icon && icon.classList.contains('toggle-icon')) {
+                 icon.textContent = (theme.visibility !== 'HIDDEN') ? 'visibility' : 'visibility_off';
+            }
+
             dom.key.value = theme.key || '';
             dom.kind.value = theme.kind || 'builtin_extend';
 
@@ -431,18 +588,18 @@
             }
 
             // Action Button
-            const deleteTitle = item._isBuiltin ? (item.visibility === 'HIDDEN' ? 'Show' : 'Hide') : 'Remove';
-            const deleteIcon = item._isBuiltin ? (item.visibility === 'HIDDEN' ? '👁' : '🚫') : '✕';
+            const deleteTitle = item._isBuiltin ? (item.visibility === 'HIDDEN' ? t('show') : t('hide')) : t('remove');
+            const deleteIconCode = item._isBuiltin ? (item.visibility === 'HIDDEN' ? 'visibility_off' : 'visibility') : 'delete';
 
             // Badge for builtin
-            const badge = item._isBuiltin ? '<span style="position:absolute;top:4px;left:4px;background:#eee;padding:2px 4px;font-size:10px;border-radius:4px;opacity:0.8">Builtin</span>' : '';
+            const badge = item._isBuiltin ? '<span style="position:absolute;top:6px;left:6px;background:rgba(255,255,255,0.9);padding:2px 6px;font-size:10px;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,0.1);">' + t('builtin', 'Builtin') + '</span>' : '';
 
             card.innerHTML = `
                 <div class="card-img-container">
                     ${badge}
                     <img src="${imgSrc}" class="card-img" draggable="false" />
                     <div class="card-actions" style="opacity:1">
-                        <button class="btn-mini btn-del" title="${deleteTitle}">${deleteIcon}</button>
+                        <button class="btn-mini btn-del" title="${deleteTitle}"><span class="material-symbols-outlined">${deleteIconCode}</span></button>
                     </div>
                 </div>
                 <div class="card-form">
@@ -502,7 +659,7 @@
 
     // --- Export Logic ---
     async function exportProject() {
-        showStatus('Generating Package...', false);
+        showStatus(t('generating_package'), false);
         dom.exportActions.classList.add('hidden');
 
         try {
@@ -708,7 +865,7 @@
                 btnOta.classList.remove('disabled');
             }
 
-            showStatus('Export Ready', true, true);
+            showStatus(t('export_ready'), true, true);
 
         } catch(e) {
             console.error(e);
@@ -720,7 +877,7 @@
     async function importProject(e) {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
-        showStatus('Loading Project...', false);
+        showStatus(t('loading_project'), false);
         dom.overlay.classList.remove('hidden');
         dom.exportActions.classList.add('hidden');
 
@@ -790,7 +947,7 @@
     // --- Helpers ---
     function showStatus(msg, done, showActions = false) {
         dom.overlay.classList.remove('hidden');
-        dom.statusTitle.textContent = done ? 'Done' : 'Processing';
+        dom.statusTitle.textContent = done ? t('done') : t('processing');
         dom.statusMsg.textContent = msg;
         dom.exportActions.classList.toggle('hidden', !showActions);
     }
