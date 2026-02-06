@@ -16,6 +16,11 @@
             import_project: "Import Project",
             load_cloud: "☁️ Load from Cloud",
             load_assets: "📂 Load Assets (Fix Export)",
+            load_success: "Remote Load Success",
+            load_success_date: "Version: {0}",
+            load_failed: "Load Failed",
+            load_failed_hint: "No remote update found. You can try importing a project manually.",
+            got_it: "Got it",
             load_assets_tooltip: "Load 'assets' folder to bypass browser blocking",
             export_package: "Export Package",
             welcome_title: "Select or Create a Theme to start",
@@ -62,6 +67,11 @@
             import_project: "匯入專案",
             load_cloud: "☁️ 從雲端載入",
             load_assets: "📂 載入資源 (修復匯出)",
+            load_success: "雲端載入成功",
+            load_success_date: "版本日期：{0}",
+            load_failed: "載入失敗",
+            load_failed_hint: "未找到雲端更新。您可以嘗試手動匯入專案或建立新主題。",
+            got_it: "知道了",
             load_assets_tooltip: "載入 'assets' 資料夾以繞過瀏覽器限制",
             export_package: "匯出打包",
             welcome_title: "選擇或建立一個主題以開始",
@@ -153,6 +163,8 @@
         btnCancelSearch: document.getElementById('btnCancelSearch'),
         btnCloseOverlay: document.getElementById('btnCloseOverlay'),
         dlZip: document.getElementById('dlZip'),
+        dlZip: document.getElementById('dlZip'),
+        dlOta: document.getElementById('dlOta'),
         dlJson: document.getElementById('dlJson'),
 
         // Manual Asset Loader
@@ -412,6 +424,7 @@
         // Show cancel button
         dom.btnCancelSearch.classList.remove('hidden');
         dom.exportActions.classList.add('hidden');
+        dom.btnCloseOverlay.textContent = t('close'); // Reset
 
         try {
             const fileBlob = await findLatestRemoteFile(isAuto);
@@ -419,34 +432,58 @@
             if (fileBlob) {
                 // Found! Import it.
                 dom.btnCancelSearch.classList.add('hidden');
-                showStatus(t('found_remote', fileBlob.name), true);
+                
+                // Extract date from filename: ota-release-YYYY-MM-DD (x).zip
+                // match YYYY-MM-DD
+                const match = fileBlob.name.match(/(\d{4}-\d{2}-\d{2})/);
+                const dateStr = match ? match[1] : 'Unknown';
+
+                showStatus(t('load_success'), true); // Keep spinner? No, maybe success icon?
+                // Actually showStatus usually has spinner if second arg is false? 
+                // Let's customize message
+                dom.statusMsg.innerHTML = `${t('load_success')} <br> <span style="font-size:12px;opacity:0.8">${t('load_success_date', dateStr)}</span>`;
                 
                 // Simulate File object for importProject
                 const file = new File([fileBlob.blob], fileBlob.name, { type: 'application/zip' });
-                // We need to call importProject but slightly modified to accept File directly or Event
-                // Reuse existing by mocking event
-                importProject({ target: { files: [file] } });
+                await importProject({ target: { files: [file] } });
+
+                // UI: Show "Got it"
+                dom.btnCloseOverlay.textContent = t('got_it');
+                dom.exportActions.classList.remove('hidden');
+                // Hide download options? No, wait. 
+                // If success, we just imported. Usually we close overlay.
+                // But user wanted "Got it". 
+                // Should we show download options? User said: "Hide 'Cancel', 'Download Zip', 'Download OTA'."
+                // IMPL: Hide the options wrappers
+                dom.exportActions.querySelectorAll('.export-opt').forEach(el => el.classList.add('hidden'));
+
             } else {
                 // Not Found / Cancelled
                 if (!state.isSearchingRemote) return; // Cancelled
                 
                 if (isAuto) {
-                    dom.overlay.classList.add('hidden'); // Silent fail
+                    dom.overlay.classList.add('hidden'); // Silent fail on auto
                 } else {
-                    showStatus(t('no_remote_found'), false, false);
+                    // Manual fail
+                    showStatus(t('load_failed'), false); // Set Title to "Load Failed"
+                    dom.statusMsg.innerHTML = `<span style="font-size:12px;opacity:0.8">${t('load_failed_hint')}</span>`;
                     dom.btnCancelSearch.classList.add('hidden');
-                    // Add close button logic (or rely on user clicking close overlay if we had one)
-                    // We need a close button here
-                    dom.exportActions.classList.remove('hidden'); // Reuse export actions container? 
-                    // Actually, let's just show Close button in overlay footer?
-                    // Reusing exportActions just for Close button is fine
-                    dom.dlZip.classList.add('hidden'); // Hide download buttons
-                    dom.dlOta.classList.add('hidden');
+                    
+                    dom.btnCloseOverlay.textContent = t('got_it');
+                    dom.exportActions.classList.remove('hidden'); 
+                    dom.exportActions.querySelectorAll('.export-opt').forEach(el => el.classList.add('hidden'));
                 }
             }
         } catch(e) {
             console.error(e);
-            if (!isAuto) showStatus('Error: ' + e.message, false);
+            if (!isAuto) {
+                 showStatus(t('load_failed'), false); // Set Title to "Load Failed"
+                 dom.statusMsg.textContent = e.message;
+                 dom.btnCancelSearch.classList.add('hidden');
+                 dom.btnCloseOverlay.textContent = t('close');
+                 dom.exportActions.classList.remove('hidden');
+                 dom.exportActions.querySelectorAll('.export-opt').forEach(el => el.classList.add('hidden'));
+            }
         } finally {
             state.isSearchingRemote = false;
         }
@@ -1118,9 +1155,8 @@
 
             showStatus(t('export_ready'), true, true);
             
-            // Ensure download buttons are visible (reset from error state)
-            dom.dlZip.classList.remove('hidden');
-            dom.dlOta.classList.remove('hidden');
+            // Show options
+            dom.exportActions.querySelectorAll('.export-opt').forEach(el => el.classList.remove('hidden'));
             dom.btnCancelSearch.classList.add('hidden');
 
         } catch(e) {
