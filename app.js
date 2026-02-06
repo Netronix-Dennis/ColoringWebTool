@@ -292,14 +292,36 @@
         dom.key.addEventListener('change', () => syncBuiltinItems()); // Ensure final sync
 
         dom.kind.addEventListener('change', (e) => {
-            updateActiveTheme('kind', e.target.value);
+            const val = e.target.value;
+            // Clear pages and key if switching to Custom
+            if (val === 'dynamic_new') {
+                const theme = state.themes[state.activeThemeIndex];
+                if (theme) {
+                     theme.key = '';
+                     theme.items = [];
+                     theme.title = { en: '', zh: '' };
+                     
+                     // Also clear inputs
+                     dom.key.value = '';
+                     dom.titleEn.value = '';
+                     dom.titleZh.value = '';
+
+                     renderPages();
+                     renderThemeList(); // Force sidebar text update
+                }
+            }
+            updateActiveTheme('kind', val);
             updateSuggestionsVisibility();
+            updateSuggestionsState(); // Refresh chip states
             syncBuiltinItems();
         });
 
         // Suggestions
         dom.suggestions.querySelectorAll('.chip').forEach(btn => {
             btn.addEventListener('click', () => {
+                // If disabled, ignore (though pointer-events:none handles it CSS-wise, good to be safe)
+                if (btn.classList.contains('disabled')) return;
+
                 dom.key.value = btn.dataset.val;
                 updateActiveTheme('key', btn.dataset.val);
                 syncBuiltinItems(); // Trigger sync
@@ -388,6 +410,10 @@
         // Debounce list re-render for titles
         if (field.startsWith('title') || field === 'visible') {
              renderThemeList(); // Refresh sidebar titles/styles
+        }
+        
+        if (field === 'key') {
+            updateSuggestionsState();
         }
     }
 
@@ -568,6 +594,52 @@
     function updateSuggestionsVisibility() {
         const isExtend = dom.kind.value === 'builtin_extend';
         dom.suggestions.style.display = isExtend ? 'flex' : 'none';
+        
+        // Lock ID input if Extend Builtin
+        if (isExtend) {
+            dom.key.setAttribute('readonly', 'true');
+            dom.key.style.opacity = '0.6';
+            dom.key.style.cursor = 'not-allowed';
+            updateSuggestionsState(); // Ensure states are correct
+        } else {
+            dom.key.removeAttribute('readonly');
+            dom.key.style.opacity = '1';
+            dom.key.style.cursor = 'text';
+        }
+    }
+    
+    function updateSuggestionsState() {
+        if (dom.kind.value !== 'builtin_extend' || state.activeThemeIndex < 0) return;
+
+        const currentTheme = state.themes[state.activeThemeIndex];
+        const currentKey = currentTheme.key;
+        
+        // Find used keys by OTHER themes
+        const usedKeys = new Set();
+        state.themes.forEach((t, idx) => {
+            if (idx !== state.activeThemeIndex && t.kind === 'builtin_extend' && t.key) {
+                usedKeys.add(t.key);
+            }
+        });
+
+        dom.suggestions.querySelectorAll('.chip').forEach(btn => {
+            const val = btn.dataset.val;
+            
+            // 1. Check Used
+            const isUsed = usedKeys.has(val);
+            if (isUsed) {
+                btn.classList.add('disabled');
+                btn.classList.remove('active');
+            } else {
+                btn.classList.remove('disabled');
+                // 2. Check Active
+                if (val === currentKey) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            }
+        });
     }
 
     function renderPages() {

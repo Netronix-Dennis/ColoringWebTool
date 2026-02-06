@@ -107,15 +107,18 @@ body { margin: 0; font-family: 'Inter', Roboto, sans-serif; background: var(--bg
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   z-index: 1;
 }
-.header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 20px; }
-.header-row:last-child { margin-bottom: 0; }
+.header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 32px; flex-wrap: wrap; }
+.header-row.main-row { align-items: center; } 
+.title-group { flex: 0 0 45%; min-width: 300px; display: flex; flex-direction: column; gap: 8px; }
+.settings-group { flex: 1; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.settings-row { display: flex; gap: 24px; align-items: flex-end; width: 100%; }
 
 .input-group.large { display: flex; flex-direction: column; flex: 1; gap: 8px; }
 .h2-input { font-size: 28px; font-weight: 400; border: none; outline: none; background: transparent; padding: 4px 0; width: 100%; border-bottom: 2px solid transparent; transition: border-color 0.2s; }
 .h3-input { font-size: 16px; color: var(--text-muted); border: none; outline: none; background: transparent; padding: 4px 0; border-bottom: 1px solid transparent; transition: border-color 0.2s; }
 .h2-input:focus, .h3-input:focus { border-bottom-color: var(--primary); }
 
-.settings { display: flex; gap: 24px; align-items: flex-end; }
+.h2-input:focus, .h3-input:focus { border-bottom-color: var(--primary); }
 .settings label { display: flex; flex-direction: column; font-size: 12px; font-weight: 500; color: var(--text-muted); gap: 6px; }
 .settings input, .settings select {
   font-size: 14px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; min-width: 160px;
@@ -139,6 +142,8 @@ body { margin: 0; font-family: 'Inter', Roboto, sans-serif; background: var(--bg
   transition: all 0.2s;
 }
 .chip:hover { background: #f1f3f4; border-color: #dadce0; }
+.chip.active { background: #e8f0fe; color: var(--primary); border-color: var(--primary); font-weight: 500; }
+.chip.disabled { opacity: 0.5; pointer-events: none; background: #f5f5f5; text-decoration: line-through; }
 
 /* Pages Grid */
 .pages-section { flex: 1; padding: 32px; overflow-y: auto; background: var(--bg-app); }

@@ -45,31 +45,35 @@
       <div id="editorContent" class="editor-content hidden">
         <!-- Editor Toolbar -->
         <header class="editor-header">
-            <div class="header-row">
-                <div class="input-group large">
+            <div class="header-row main-row">
+                <!-- Left: Title Inputs (50%) -->
+                <div class="input-group title-group">
                     <input id="themeTitleEn" type="text" placeholder="Theme Name (EN)" class="h2-input" data-i18n-placeholder="theme_name_en" />
                     <input id="themeTitleZh" type="text" placeholder="中文名稱 (ZH)" class="h3-input" data-i18n-placeholder="theme_name_zh" />
                 </div>
-                <div class="actions">
-
-            <div class="header-row settings">
-                <label>
-                    <span data-i18n="id_key">ID / Key</span>
-                    <input id="themeKey" type="text" placeholder="e.g. animals" />
-                </label>
-                <label>
-                    <span data-i18n="type">Type</span>
-                    <select id="themeKind">
-                        <option value="builtin_extend" data-i18n="extend_builtin">Extend Builtin</option>
-                        <option value="dynamic_new" data-i18n="new_custom_theme">New Custom Theme</option>
-                    </select>
-                </label>
-                <!-- Builtin Key Suggestions (only visible if extend) -->
-                <div id="builtinKeySuggestions" class="chips">
-                    <button class="chip" data-val="mascot">mascot</button>
-                    <button class="chip" data-val="princess">princess</button>
-                    <button class="chip" data-val="animals">animals</button>
-                    <button class="chip" data-val="bookfair">bookfair</button>
+                
+                <!-- Right: ID & Type Settings -->
+                <div class="settings-group">
+                    <div class="settings-row">
+                        <label>
+                            <span data-i18n="id_key">ID / Key</span>
+                            <input id="themeKey" type="text" placeholder="e.g. animals" />
+                        </label>
+                        <label>
+                            <span data-i18n="type">Type</span>
+                            <select id="themeKind">
+                                <option value="builtin_extend" data-i18n="extend_builtin">Extend Builtin</option>
+                                <option value="dynamic_new" data-i18n="new_custom_theme">New Custom Theme</option>
+                            </select>
+                        </label>
+                    </div>
+                    <!-- Builtin Key Suggestions -->
+                    <div id="builtinKeySuggestions" class="chips">
+                        <button class="chip" data-val="mascot">mascot</button>
+                        <button class="chip" data-val="princess">princess</button>
+                        <button class="chip" data-val="animals">animals</button>
+                        <button class="chip" data-val="bookfair">bookfair</button>
+                    </div>
                 </div>
             </div>
         </header>
