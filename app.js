@@ -6,19 +6,8 @@
         builtinManifest: null,
         builtinGroups: new Map(),
         fileCache: new Map(), // relativePath/name -> File object
-        lang: 'zh' // Default Language
-    };
-
-    const TRANSLATIONS = {
-        en: {
-    const state = {
-        themes: [],
-        activeThemeIndex: -1,
-        builtinManifest: null,
-        builtinGroups: new Map(),
-        fileCache: new Map(), // relativePath/name -> File object
         lang: 'zh', // Default Language
-        isSearchingRemote: false // Remote OTA Search flag
+        isSearchingRemote: false
     };
 
     const TRANSLATIONS = {
@@ -153,6 +142,7 @@
         // Global Actions
         btnImport: document.getElementById('btnImportProject'),
         btnExport: document.getElementById('btnExport'),
+        btnLoadRemote: document.getElementById('btnLoadRemote'),
         fileImport: document.getElementById('fileImport'),
 
         // Overlay
