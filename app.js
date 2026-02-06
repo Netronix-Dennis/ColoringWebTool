@@ -1002,103 +1002,85 @@
 
                     let fileBytes = null;
                     let fileName = 'image.png';
+                    let relPath, projectPath;
+                    let isOptimizedBuiltin = false;
+                    let finalName;
+                    let md5Val = '';
+                    let sha = '';
 
-                    if (item.file instanceof File) {
-                        fileBytes = new Uint8Array(await item.file.arrayBuffer());
-                        fileName = item.file.name;
-                    } else if (item.file instanceof Blob) {
-                         fileBytes = new Uint8Array(await item.file.arrayBuffer());
-                         // Blob might not have name, use generated
-                    } else if (item.file instanceof Uint8Array) {
-                         fileBytes = item.file;
-                    } else if (item.file.data) {
-                        fileBytes = item.file.data;
-                        fileName = item.file.name || 'image.png';
-                    } else if (item.file.url) {
-                        // Built-in asset? Fetch it.
-                        // Try Cache first (Drag and drop)
-                        // item.file.url is like "assets/coloring/mascot/16_waving.png"
-                        let file = state.fileCache ? (state.fileCache.get(item.file.url) || state.fileCache.get(basename(item.file.url))) : null;
+                    // 1. Check if Built-in
+                    if (item._isBuiltin) {
+                        let builtinUrl = item.file.url;
+                        // Fallback lookup
+                        if (!builtinUrl) {
+                            const bGroup = state.builtinGroups.get(theme.key);
+                            const bi = bGroup ? bGroup.items.find(i => i.id === item.id) : null;
+                            if (bi && bi.files && bi.files.portrait) {
+                                builtinUrl = 'assets/' + bi.files.portrait;
+                            }
+                        }
 
-                        if (file) {
-                             // Found in cache!
-                             fileBytes = new Uint8Array(await file.arrayBuffer());
-                             fileName = item.file.name || file.name;
-                        } else {
-                            // Try fetch (will fail on file:// usually)
-                            try {
+                        if (builtinUrl) {
+                            // Ensure clean relative path (no assets/ prefix)
+                            relPath = builtinUrl.startsWith('assets/') ? builtinUrl.substring(7) : builtinUrl;
+                            projectPath = builtinUrl.startsWith('assets/') ? builtinUrl : `assets/${builtinUrl}`;
+                            isOptimizedBuiltin = true;
+                            // SKIP FETCHING BYTES
+                        }
+                    }
+
+                    // 2. If NOT Built-in, Fetch Bytes
+                    if (!isOptimizedBuiltin) {
+                        if (item.file instanceof File) {
+                            fileBytes = new Uint8Array(await item.file.arrayBuffer());
+                            fileName = item.file.name;
+                        } else if (item.file instanceof Blob) {
+                            fileBytes = new Uint8Array(await item.file.arrayBuffer());
+                        } else if (item.file instanceof Uint8Array) {
+                            fileBytes = item.file;
+                        } else if (item.file.data) {
+                            fileBytes = item.file.data;
+                            fileName = item.file.name || 'image.png';
+                        } else if (item.file.url) {
+                            // Should be rare if we handled builtin above, maybe dragging external URL?
+                             try {
                                 const res = await fetch(item.file.url);
                                 if (res.ok) {
                                     const blob = await res.blob();
                                     fileBytes = new Uint8Array(await blob.arrayBuffer());
                                     fileName = item.file.name || basename(item.file.url);
-                                } else {
-                                    console.warn('Failed to fetch builtin asset', item.file.url);
                                 }
-                            } catch(e) {
-                                console.warn('Error fetching builtin asset', e);
-                            }
+                            } catch(e) { console.warn('Fetch error', e); }
                         }
-                    }
 
-                    if (!fileBytes) {
-                        console.warn('Missing bytes for', item.id);
-                        // If we are exporting and missing bytes, user needs to drop assets.
-                        // We should probably count this as error?
-                        // But let's verify if we can proceed without it? No, manifest needs it.
-                        continue;
-                    }
+                        if (!fileBytes) {
+                            console.warn('Missing bytes for', item.id);
+                            continue;
+                        }
 
-                    // Hash
-                    const md5 = md5Hex(fileBytes);
-                    const sha = await sha256Hex(fileBytes);
+                        // Hash
+                        md5Val = md5Hex(fileBytes);
+                        sha = await sha256Hex(fileBytes);
 
-                    let relPath, projectPath, finalName;
-                    let isOptimizedBuiltin = false;
+                        // NEW / CUSTOM FILE
+                        const safeName = fileName.replace(/[^a-z0-9\._-]/gi, '-').toLowerCase();
+                        finalName = `${md5Val.substring(0,8)}-${safeName}`;
+                        relPath = `${base}/${finalName}`;
+                        projectPath = `assets/${relPath}`;
 
-                    if (item._isBuiltin) {
-                         // Try to determine the original built-in path
-                         let builtinUrl = item.file.url;
-
-                         // Fallback for Imported projects (missing url): Look up in manifest
-                         if (!builtinUrl) {
-                              const bGroup = state.builtinGroups.get(theme.key);
-                              const bi = bGroup ? bGroup.items.find(i => i.id === item.id) : null;
-                              if (bi && bi.files && bi.files.portrait) {
-                                   builtinUrl = 'assets/' + bi.files.portrait;
-                              }
-                         }
-
-                         if (builtinUrl) {
-                              // Ensure clean relative path (no assets/ prefix)
-                              relPath = builtinUrl.startsWith('assets/') ? builtinUrl.substring(7) : builtinUrl;
-                              projectPath = builtinUrl.startsWith('assets/') ? builtinUrl : `assets/${builtinUrl}`;
-                              isOptimizedBuiltin = true;
-                         }
-                    }
-
-                    if (isOptimizedBuiltin) {
-                         // Add to SOURCE ZIP (self contained)
-                         zwSource.addFile(projectPath, fileBytes);
-
-                         // SKIP ADDING TO OTA ZIP (App will restore from APK)
-                    } else {
-                         // NEW / CUSTOM FILE
-                         const safeName = fileName.replace(/[^a-z0-9\._-]/gi, '-').toLowerCase();
-                         finalName = `${md5.substring(0,8)}-${safeName}`;
-                         relPath = `${base}/${finalName}`;
-                         projectPath = `assets/${relPath}`;
-
-                         // Add to BOTH ZIPs
-                         zwSource.addFile(projectPath, fileBytes);
-                         zwOta.addFile(projectPath, fileBytes);
+                        // Add to BOTH ZIPs
+                        zwSource.addFile(projectPath, fileBytes);
+                        zwOta.addFile(projectPath, fileBytes);
                     }
 
                     // ID Generation (if empty)
                     let id = item.id;
                     if (!id) {
-                         // Generate 10 char ID from hash
-                         const rawId = await sha256Hex(new TextEncoder().encode((theme.key||'')+md5));
+                         // For builtin, we rely on item.id already being set. If not, we have issues.
+                         // For custom, used MD5.
+                         // Fallback if builtin has no ID? (Shouldn't happen)
+                         const seed = isOptimizedBuiltin ? (projectPath + theme.key) : md5Val;
+                         const rawId = await sha256Hex(new TextEncoder().encode(seed));
                          id = rawId.substring(0, 10);
                     }
 
@@ -1118,11 +1100,13 @@
                         files: { portrait: relPath }
                     });
 
-                    // Add to Manifest Assets (Files list)
-                    manifest.assets.files[relPath] = {
-                        sha256: sha,
-                        size: fileBytes.length
-                    };
+                    // Add to Manifest Assets (Files list) - ONLY if Custom
+                    if (!isOptimizedBuiltin) {
+                        manifest.assets.files[relPath] = {
+                            sha256: sha,
+                            size: fileBytes.length
+                        };
+                    }
                 }
 
                 projectJson.groups.push(pGroup);
@@ -1145,12 +1129,12 @@
             zwOta.addFile('templates-manifest.json', new TextEncoder().encode(JSON.stringify(manifest, null, 2)));
             const blobOta = zwOta.finish();
 
-            if (btnOta) {
-                btnOta.href = URL.createObjectURL(blobOta);
+            if (dom.dlOta) {
+                dom.dlOta.href = URL.createObjectURL(blobOta);
                 // Auto name: ota-release-YYYY-MM-DD.zip (Default)
                 // Browser will handle (1) if duplicate
-                btnOta.download = `ota-release-${new Date().toISOString().slice(0,10)}.zip`;
-                btnOta.classList.remove('disabled');
+                dom.dlOta.download = `ota-release-${new Date().toISOString().slice(0,10)}.zip`;
+                dom.dlOta.classList.remove('disabled');
             }
 
             showStatus(t('export_ready'), true, true);
@@ -1230,9 +1214,8 @@
                     if (fileData) {
                         fileObj = { data: fileData, name: basename(path) };
                     } 
-                    // 2. OTA Fallback: Check Local Builtin Lib 
-                    // 2. OTA Fallback: Check Local Builtin Lib
-                    else if (isOta && it.id && bGroup) {
+                    // 2. Fallback: Check Local Builtin Lib
+                    else if (it.id && bGroup) {
                          // Find matching ID (case sensitive? usually yes)
                          const bi = bGroup.items.find(i => i.id === it.id);
                          if (bi && bi.files && bi.files.portrait) {
@@ -1243,7 +1226,7 @@
                              };
                          } else {
                              // ID NOT FOUND -> SKIP (User Policy)
-                             console.warn('OTA Import: Local builtin not found, skipping', it.id);
+                             console.warn('Import Fallback: Local builtin not found, skipping', it.id);
                              continue; 
                          }
                     }
