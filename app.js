@@ -994,35 +994,93 @@
             const zr = new ZipReader(await file.arrayBuffer());
             const entries = zr.read();
 
-            if (!entries.has('project.json')) throw new Error('Invalid project file (missing project.json)');
+            let project = null;
+            let isOta = false;
 
-            const pText = new TextDecoder().decode(entries.get('project.json'));
-            const project = JSON.parse(pText);
+            if (entries.has('project.json')) {
+                const pText = new TextDecoder().decode(entries.get('project.json'));
+                project = JSON.parse(pText);
+            } else if (entries.has('templates-manifest.json')) {
+                const mText = new TextDecoder().decode(entries.get('templates-manifest.json'));
+                project = JSON.parse(mText);
+                isOta = true;
+            } else {
+                throw new Error('Invalid project file (missing project.json or templates-manifest.json)');
+            }
 
             state.themes = [];
 
             for (const g of (project.groups || [])) {
+                // Determine Title (Source vs OTA Manifest)
+                // Manifest uses zh_TW/en_US, Source uses zh/en typically but let's handle both
+                const tEn = g.title?.en || g.title?.en_US || '';
+                const tZh = g.title?.zh || g.title?.zh_TW || '';
+
                 const theme = {
                     kind: g.group_kind || 'builtin_extend',
                     key: g.group_key || '',
-                    title: { en: g.title?.en_US||'', zh: g.title?.zh_TW||'' },
+                    title: { en: tEn, zh: tZh },
                     visibility: g.visibility || 'VISIBLE',
                     items: []
                 };
 
+                // Look up local builtin group for fallback
+                const bGroup = state.builtinGroups.get(theme.key);
+
                 for (const it of (g.items || [])) {
                     const path = it.files?.portrait;
                     // In project.json, path is 'assets/coloring/...' due to export logic
+                    
+                    let fileObj = null;
+
+                    // 1. Check ZIP first (Optimization: O(1) lookup)
+                    // Manifest path might be "coloring/..." but zip has "assets/coloring/..."
                     let fileData = null;
-                    if (path && entries.has(path)) {
-                        fileData = entries.get(path);
+                    if (path) {
+                        if (entries.has(path)) {
+                            fileData = entries.get(path);
+                        } else if (entries.has('assets/' + path)) {
+                            fileData = entries.get('assets/' + path);
+                        }
                     }
+
+                    if (fileData) {
+                        fileObj = { data: fileData, name: basename(path) };
+                    } 
+                    // 2. OTA Fallback: Check Local Builtin Lib 
+                    // 2. OTA Fallback: Check Local Builtin Lib
+                    else if (isOta && it.id && bGroup) {
+                         // Find matching ID (case sensitive? usually yes)
+                         const bi = bGroup.items.find(i => i.id === it.id);
+                         if (bi && bi.files && bi.files.portrait) {
+                             // RESTORED! Link to local asset
+                             fileObj = { 
+                                 url: 'assets/' + bi.files.portrait, 
+                                 name: basename(bi.files.portrait) 
+                             };
+                         } else {
+                             // ID NOT FOUND -> SKIP (User Policy)
+                             console.warn('OTA Import: Local builtin not found, skipping', it.id);
+                             continue; 
+                         }
+                    }
+                    
+                    // If still no file, do we skip? 
+                    // Custom items with missing files will be skipped here unless we allow empty files.
+                    // Current logic: skipped if no fileObj
+                    if (!fileObj) {
+                         continue;
+                    }
+
+                    const itEn = it.title?.en || it.title?.en_US || '';
+                    const itZh = it.title?.zh || it.title?.zh_TW || '';
 
                     theme.items.push({
                         id: it.id || '',
-                        title: { en: it.title?.en_US||'', zh: it.title?.zh_TW||'' },
+                        title: { en: itEn, zh: itZh },
                         visibility: it.visibility || 'VISIBLE',
-                        file: fileData ? { data: fileData, name: basename(path) } : null
+                        file: fileObj,
+                        _isBuiltin: !!fileObj.url // Mark as builtin if we used URL
                     });
                 }
                 state.themes.push(theme);
@@ -1038,17 +1096,8 @@
 
         } catch(e) {
             console.error(e);
-            showStatus('Import Failed: ' + e.message, false);
-            // Add close button
-            if (!dom.exportActions.querySelector('#btnErrClose')) {
-                 const ab = document.createElement('button');
-                 ab.id = 'btnErrClose';
-                 ab.className = 'btn text';
-                 ab.textContent = 'Close';
-                 ab.onclick = () => dom.overlay.classList.add('hidden');
-                 dom.exportActions.appendChild(ab);
-            }
-            dom.exportActions.classList.remove('hidden');
+            showStatus(t('import_failed') + ': ' + e.message, false);
+            dom.exportActions.classList.remove('hidden'); // Show actions so user can close
         }
         dom.fileImport.value = '';
     }
