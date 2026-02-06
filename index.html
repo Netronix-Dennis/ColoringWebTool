@@ -28,6 +28,7 @@
       <footer class="sb-footer">
       <footer class="sb-footer">
         <button id="btnImportProject" class="btn secondary full" data-i18n="import_project"><span class="material-symbols-outlined">folder_open</span> Import Project</button>
+        <button id="btnLoadRemote" class="btn secondary full" title="Load latest from cloud" data-i18n="load_cloud"><span class="material-symbols-outlined">cloud_download</span> Load from Cloud</button>
         <button id="btnLoadAssets" class="btn secondary full hidden" title="Load 'assets' folder to bypass browser blocking" data-i18n="load_assets" data-i18n-title="load_assets_tooltip"><span class="material-symbols-outlined">folder_zip</span> Load Assets (Fix Export)</button>
         <button id="btnExport" class="btn primary full" data-i18n="export_package"><span class="material-symbols-outlined">download</span> Export Package</button>
         <input id="fileLoadAssets" type="file" webkitdirectory directory multiple hidden />
@@ -117,6 +118,9 @@
                     <a id="dlOta" class="btn primary full" data-i18n="download_ota_zip">Download OTA Package (.zip)</a>
                 </div>
 
+                </div>
+                
+                <button id="btnCancelSearch" class="btn danger full hidden" style="margin-top:8px" data-i18n="cancel_search">Cancel Search</button>
                 <button id="btnCloseOverlay" class="btn text" style="margin-top:8px" data-i18n="close">Close</button>
             </div>
         </div>

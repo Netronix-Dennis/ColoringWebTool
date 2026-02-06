@@ -11,8 +11,21 @@
 
     const TRANSLATIONS = {
         en: {
+    const state = {
+        themes: [],
+        activeThemeIndex: -1,
+        builtinManifest: null,
+        builtinGroups: new Map(),
+        fileCache: new Map(), // relativePath/name -> File object
+        lang: 'zh', // Default Language
+        isSearchingRemote: false // Remote OTA Search flag
+    };
+
+    const TRANSLATIONS = {
+        en: {
             new_theme: "New Theme",
             import_project: "Import Project",
+            load_cloud: "☁️ Load from Cloud",
             load_assets: "📂 Load Assets (Fix Export)",
             load_assets_tooltip: "Load 'assets' folder to bypass browser blocking",
             export_package: "Export Package",
@@ -58,6 +71,7 @@
         zh: {
             new_theme: "新增主題",
             import_project: "匯入專案",
+            load_cloud: "☁️ 從雲端載入",
             load_assets: "📂 載入資源 (修復匯出)",
             load_assets_tooltip: "載入 'assets' 資料夾以繞過瀏覽器限制",
             export_package: "匯出打包",
@@ -81,9 +95,13 @@
             opt_publish: "2. 發布至 App (OTA)",
             opt_publish_desc: "上傳至伺服器供 App 更新使用。包含 <b>manifest.json</b> 與資源檔。",
             download_ota_zip: "下載 OTA 更新包 (.zip)",
+            cancel_search: "取消搜尋",
             close: "關閉",
 
             // Dynamic
+            searching_cloud: "正在搜尋雲端更新... {0}",
+            no_remote_found: "未找到近期雲端更新 (365天內)",
+            found_remote: "已找到最新版本: {0}",
             untitled_theme: "未命名主題",
             extend: "擴充",
             custom: "自訂",
@@ -142,6 +160,7 @@
         statusTitle: document.getElementById('statusTitle'),
         statusMsg: document.getElementById('statusMsg'),
         exportActions: document.getElementById('exportActions'),
+        btnCancelSearch: document.getElementById('btnCancelSearch'),
         btnCloseOverlay: document.getElementById('btnCloseOverlay'),
         dlZip: document.getElementById('dlZip'),
         dlJson: document.getElementById('dlJson'),
@@ -159,6 +178,9 @@
         setLanguage('zh'); // Default to Chinese
         renderThemeList();
         updateEditorState();
+        
+        // Auto Load Remote (Silent Check)
+        setTimeout(() => loadRemoteProject(true), 500);
     }
 
     function setLanguage(lang) {
@@ -332,10 +354,13 @@
         // dom.btnDelete.addEventListener('click', deleteActiveTheme);
 
         // Global
+        // Global
         dom.btnExport.addEventListener('click', exportProject);
         dom.btnImport.addEventListener('click', () => dom.fileImport.click());
+        dom.btnLoadRemote.addEventListener('click', () => loadRemoteProject(false));
         dom.fileImport.addEventListener('change', importProject);
         dom.btnCloseOverlay.addEventListener('click', () => dom.overlay.classList.add('hidden'));
+        dom.btnCancelSearch.addEventListener('click', cancelRemoteSearch);
 
         // Manual Asset Loader
         dom.btnLoadAssets.addEventListener('click', () => dom.fileLoadAssets.click());
@@ -380,6 +405,132 @@
             console.warn('Backend fetch failed, showing manual loader', e);
             dom.btnLoadAssets.classList.remove('hidden');
         }
+    }
+
+    // --- Remote OTA Logic ---
+
+    function cancelRemoteSearch() {
+        state.isSearchingRemote = false;
+        dom.overlay.classList.add('hidden');
+    }
+
+    async function loadRemoteProject(isAuto = false) {
+        state.isSearchingRemote = true;
+        showStatus('Connecting...', false);
+        if (!isAuto) dom.overlay.classList.remove('hidden');
+        
+        // Show cancel button
+        dom.btnCancelSearch.classList.remove('hidden');
+        dom.exportActions.classList.add('hidden');
+
+        try {
+            const fileBlob = await findLatestRemoteFile(isAuto);
+            
+            if (fileBlob) {
+                // Found! Import it.
+                dom.btnCancelSearch.classList.add('hidden');
+                showStatus(t('found_remote', fileBlob.name), true);
+                
+                // Simulate File object for importProject
+                const file = new File([fileBlob.blob], fileBlob.name, { type: 'application/zip' });
+                // We need to call importProject but slightly modified to accept File directly or Event
+                // Reuse existing by mocking event
+                importProject({ target: { files: [file] } });
+            } else {
+                // Not Found / Cancelled
+                if (!state.isSearchingRemote) return; // Cancelled
+                
+                if (isAuto) {
+                    dom.overlay.classList.add('hidden'); // Silent fail
+                } else {
+                    showStatus(t('no_remote_found'), false, false);
+                    dom.btnCancelSearch.classList.add('hidden');
+                    // Add close button logic (or rely on user clicking close overlay if we had one)
+                    // We need a close button here
+                    dom.exportActions.classList.remove('hidden'); // Reuse export actions container? 
+                    // Actually, let's just show Close button in overlay footer?
+                    // Reusing exportActions just for Close button is fine
+                    dom.dlZip.classList.add('hidden'); // Hide download buttons
+                    dom.dlOta.classList.add('hidden');
+                }
+            }
+        } catch(e) {
+            console.error(e);
+            if (!isAuto) showStatus('Error: ' + e.message, false);
+        } finally {
+            state.isSearchingRemote = false;
+        }
+    }
+
+    async function findLatestRemoteFile(isAuto) {
+        // Search 365 Days
+        const today = new Date();
+        
+        for (let i = 0; i < 365; i++) {
+            if (!state.isSearchingRemote) return null; // Cancelled
+
+            const d = new Date(today);
+            d.setDate(today.getDate() - i);
+            const dateStr = d.toISOString().slice(0, 10); // YYYY-MM-DD
+            
+            const statusText = t('searching_cloud', dateStr);
+            if (isAuto && i > 0) { 
+                // Only show overlay after 1st check fails in auto mode? 
+                // actually for UX, just show it if it takes time
+                dom.overlay.classList.remove('hidden');
+            }
+            dom.statusMsg.textContent = statusText;
+
+            // Probe Base: ota/ota-release-YYYY-MM-DD.zip
+            const baseName = `ota-release-${dateStr}.zip`;
+            const foundBase = await probeFile(`ota/${baseName}`);
+
+            if (foundBase) {
+                // Suffix Mode: (1)...
+                let bestBlob = foundBase;
+                let bestName = baseName;
+                let suffix = 1;
+                
+                // Try up to 10 suffixes?
+                while (true) {
+                    if (!state.isSearchingRemote) return null;
+                    const sName = `ota-release-${dateStr} (${suffix}).zip`;
+                    // URL encode parenthess
+                    // But fetch usually handles encoding if we just pass string? 
+                    // Best to be safe: ' (' -> '%20('
+                    // actually encodeURIcomponent on the name part
+                    // ota/ota-release-2026-02-06%20(1).zip
+                    const url = `ota/ota-release-${dateStr} (${suffix}).zip`;
+                    
+                    const foundSuffix = await probeFile(url);
+                    if (foundSuffix) {
+                        bestBlob = foundSuffix;
+                        bestName = sName;
+                        suffix++;
+                    } else {
+                        break; // No more suffixes
+                    }
+                    if (suffix > 20) break; // Safety
+                }
+                
+                return { blob: bestBlob, name: bestName };
+            }
+        }
+        return null;
+    }
+
+    async function probeFile(url) {
+        try {
+            // HEAD first to save bandwidth? 
+            // GitHub Pages supports HEAD.
+            const res = await fetch(url, { method: 'HEAD' });
+            if (res.ok) {
+                // Fetch full Body
+                const blobRes = await fetch(url);
+                return await blobRes.blob();
+            }
+        } catch(e) { /* ignore 404/network err */ }
+        return null;
     }
 
     // --- Logic: Themes ---
@@ -967,14 +1118,20 @@
             zwOta.addFile('templates-manifest.json', new TextEncoder().encode(JSON.stringify(manifest, null, 2)));
             const blobOta = zwOta.finish();
 
-            const btnOta = document.getElementById('dlOta');
             if (btnOta) {
                 btnOta.href = URL.createObjectURL(blobOta);
+                // Auto name: ota-release-YYYY-MM-DD.zip (Default)
+                // Browser will handle (1) if duplicate
                 btnOta.download = `ota-release-${new Date().toISOString().slice(0,10)}.zip`;
                 btnOta.classList.remove('disabled');
             }
 
             showStatus(t('export_ready'), true, true);
+            
+            // Ensure download buttons are visible (reset from error state)
+            dom.dlZip.classList.remove('hidden');
+            dom.dlOta.classList.remove('hidden');
+            dom.btnCancelSearch.classList.add('hidden');
 
         } catch(e) {
             console.error(e);
