@@ -21,6 +21,7 @@
             load_failed: "Load Failed",
             load_failed_hint: "No remote update found. You can try importing a project manually.",
             got_it: "Got it",
+            base_url_label: "Base URL (for manifest):",
             load_assets_tooltip: "Load 'assets' folder to bypass browser blocking",
             export_package: "Export Package",
             welcome_title: "Select or Create a Theme to start",
@@ -72,6 +73,7 @@
             load_failed: "載入失敗",
             load_failed_hint: "未找到雲端更新。您可以嘗試手動匯入專案或建立新主題。",
             got_it: "知道了",
+            base_url_label: "基礎網址 (Manifest 用):",
             load_assets_tooltip: "載入 'assets' 資料夾以繞過瀏覽器限制",
             export_package: "匯出打包",
             welcome_title: "選擇或建立一個主題以開始",
@@ -169,7 +171,10 @@
 
         // Manual Asset Loader
         btnLoadAssets: document.getElementById('btnLoadAssets'),
-        fileLoadAssets: document.getElementById('fileLoadAssets')
+        fileLoadAssets: document.getElementById('fileLoadAssets'),
+        
+        // Settings
+        inputBaseUrl: document.getElementById('inputBaseUrl')
     };
 
     // --- Init ---
@@ -180,6 +185,10 @@
         setLanguage('zh'); // Default to Chinese
         renderThemeList();
         updateEditorState();
+        
+        // Init Base URL
+        const savedUrl = localStorage.getItem('ota_base_url');
+        dom.inputBaseUrl.value = savedUrl || 'https://ota.mobiscribe.com/eNote/templates_update/';
         
         // Auto Load Remote (Silent Check)
         setTimeout(() => loadRemoteProject(true), 500);
@@ -363,6 +372,10 @@
         dom.fileImport.addEventListener('change', importProject);
         dom.btnCloseOverlay.addEventListener('click', () => dom.overlay.classList.add('hidden'));
         dom.btnCancelSearch.addEventListener('click', cancelRemoteSearch);
+        
+        dom.inputBaseUrl.addEventListener('change', () => {
+            localStorage.setItem('ota_base_url', dom.inputBaseUrl.value);
+        });
 
         // Manual Asset Loader
         dom.btnLoadAssets.addEventListener('click', () => dom.fileLoadAssets.click());
@@ -967,7 +980,7 @@
                 updated_at: new Date().toISOString(),
                 assets: {
                     zip_url: 'https://ota.mobiscribe.com/eNote/templates_update/templates-current.zip',
-                    files_base_url: 'https://ota.mobiscribe.com/eNote/templates_update/',
+                    files_base_url: dom.inputBaseUrl.value,
                     files: {},
                     sha256: ''
                 },
