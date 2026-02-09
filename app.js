@@ -330,17 +330,79 @@
             if (val === 'dynamic_new') {
                 const theme = state.themes[state.activeThemeIndex];
                 if (theme) {
-                     theme.key = '';
+                     // Generate unique custom key
+                     let counter = 1;
+                     let newKey = '';
+                     while(true) {
+                         const candidate = `custom_${counter}`;
+                         const exists = state.themes.some((t, idx) => t.key === candidate && idx !== state.activeThemeIndex);
+                         if (!exists) {
+                             newKey = candidate;
+                             break;
+                         }
+                         counter++;
+                     }
+                     
+                     theme.key = newKey;
+                     theme.kind = 'custom'; // Update kind in model
                      theme.items = [];
                      theme.title = { en: '', zh: '' };
                      
-                     // Also clear inputs
-                     dom.key.value = '';
+                     // Update inputs
+                     dom.key.value = newKey;
                      dom.titleEn.value = '';
                      dom.titleZh.value = '';
-
+                     
+                     renderThemeList();
                      renderPages();
-                     renderThemeList(); // Force sidebar text update
+                }
+            } else {
+                // Switching back to Extend Builtin
+                const theme = state.themes[state.activeThemeIndex];
+                if (theme) {
+                    theme.kind = 'builtin_extend';
+                    
+                    // Try to find an unused builtin to auto-fill
+                    const usedBuiltins = new Set();
+                    state.themes.forEach((t, idx) => {
+                         if (idx !== state.activeThemeIndex && t.kind === 'builtin_extend' && t.key) {
+                             usedBuiltins.add(t.key);
+                         }
+                    });
+
+                    let foundKey = '';
+                    let foundTitleEn = '';
+                    let foundTitleZh = '';
+
+                    for (const [key, group] of state.builtinGroups) {
+                        if (!usedBuiltins.has(key)) {
+                            foundKey = key;
+                            foundTitleEn = group.title?.en || '';
+                            foundTitleZh = group.title?.zh || group.title?.zh_TW || '';
+                            break;
+                        }
+                    }
+
+                    if (foundKey) {
+                        theme.key = foundKey;
+                        theme.title = { en: foundTitleEn, zh: foundTitleZh };
+                        theme.items = []; // Will be synced
+                    } else {
+                        // All used? Just clear or keep as is? 
+                        // User manual switch implies they might want to edit one, but unique constraint...
+                        // Let's clear if no unused found, to force user to pick (or duplicate if they insist)
+                        theme.key = '';
+                        theme.title = { en: '', zh: '' };
+                        theme.items = [];
+                    }
+
+                    dom.key.value = theme.key;
+                    dom.titleEn.value = theme.title.en;
+                    dom.titleZh.value = theme.title.zh;
+                    
+                    updateSuggestionsVisibility();
+                    renderThemeList();
+                    // syncBuiltinItems will be called below
                 }
             }
             updateActiveTheme('kind', val);
@@ -576,15 +638,62 @@
     // --- Logic: Themes ---
 
     function createNewTheme() {
+        // 1. Determine Default Kind & Key
+        let defaultKind = 'builtin_extend';
+        let newKey = ''; // Will be set if picking an unused builtin
+        let defaultTitleEn = '';
+        let defaultTitleZh = '';
+        
+        // Count used builtins
+        const usedBuiltins = new Set();
+        state.themes.forEach(t => {
+            if (t.kind === 'builtin_extend' && t.key) usedBuiltins.add(t.key);
+        });
+
+        // Find the first UNUSED built-in (in order)
+        let foundUnused = false;
+        for (const [key, group] of state.builtinGroups) {
+            if (!usedBuiltins.has(key)) {
+                // Found one!
+                newKey = key;
+                defaultTitleEn = group.title?.en || '';
+                defaultTitleZh = group.title?.zh || group.title?.zh_TW || '';
+                foundUnused = true;
+                break;
+            }
+        }
+
+        if (!foundUnused) {
+            // All built-ins used -> Default to Custom
+            defaultKind = 'custom';
+            // Generate unique custom key
+            let counter = 1;
+            while(true) {
+                const candidate = `custom_${counter}`;
+                const exists = state.themes.some(t => t.key === candidate);
+                if (!exists) {
+                    newKey = candidate;
+                    break;
+                }
+                counter++;
+            }
+        }
+
         const newTheme = {
-            kind: 'builtin_extend', // default
-            key: '',
-            title: { en: '', zh: '' },
+            kind: defaultKind,
+            key: newKey,
+            title: { en: defaultTitleEn, zh: defaultTitleZh },
             visibility: 'VISIBLE', // default visible
             items: [] // Pages
         };
         state.themes.push(newTheme);
         state.activeThemeIndex = state.themes.length - 1;
+        
+        // Sync items if builtin was selected
+        if (defaultKind === 'builtin_extend') {
+            syncBuiltinItems();
+        }
+        
         renderThemeList();
         updateEditorState();
     }
@@ -707,6 +816,10 @@
         state.themes.forEach((theme, idx) => {
             const el = document.createElement('div');
             el.className = `theme-item ${idx === state.activeThemeIndex ? 'active' : ''} ${theme.visibility === 'HIDDEN' ? 'hidden-theme' : ''}`;
+            
+            // Drag & Drop Attributes
+            el.setAttribute('draggable', 'true');
+            el.dataset.index = idx;
 
             const title = theme.title[state.lang] || theme.title.en || theme.title.zh || (theme.key ? theme.key : t('untitled_theme'));
             const sub = theme.kind === 'builtin_extend' ? t('extend') : t('custom');
@@ -715,7 +828,7 @@
             const visIcon = theme.visibility === 'HIDDEN' ? 'visibility_off' : 'visibility';
             
             el.innerHTML = `
-                <div style="flex:1">
+                <div style="flex:1; pointer-events: none;">
                     <div class="t-title">${escapeHtml(title)}</div>
                     <div class="t-sub">
                         <span>${sub}</span>
@@ -735,6 +848,53 @@
                 state.activeThemeIndex = idx;
                 renderThemeList();
                 updateEditorState();
+            });
+
+            // Drag Events
+            el.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', idx);
+                e.dataTransfer.effectAllowed = 'move';
+                el.style.opacity = '0.5';
+            });
+
+            el.addEventListener('dragend', (e) => {
+                el.style.opacity = '1';
+                dom.themeList.querySelectorAll('.theme-item').forEach(item => item.classList.remove('drag-over'));
+            });
+
+            el.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                el.classList.add('drag-over');
+            });
+
+            el.addEventListener('dragleave', (e) => {
+                el.classList.remove('drag-over');
+            });
+
+            el.addEventListener('drop', (e) => {
+                e.preventDefault();
+                el.classList.remove('drag-over');
+                const fromIdxStr = e.dataTransfer.getData('text/plain');
+                if (!fromIdxStr) return;
+                const fromIdx = parseInt(fromIdxStr);
+
+                if (fromIdx !== idx) {
+                    // Reorder Logic
+                    const movedTheme = state.themes.splice(fromIdx, 1)[0];
+                    state.themes.splice(idx, 0, movedTheme);
+                    
+                    // Update active index
+                    if (state.activeThemeIndex === fromIdx) {
+                        state.activeThemeIndex = idx;
+                    } else if (state.activeThemeIndex > fromIdx && state.activeThemeIndex <= idx) {
+                        state.activeThemeIndex--;
+                    } else if (state.activeThemeIndex < fromIdx && state.activeThemeIndex >= idx) {
+                        state.activeThemeIndex++;
+                    }
+
+                    renderThemeList();
+                }
             });
 
             // Action Buttons
@@ -839,8 +999,14 @@
 
         dom.pageCount.textContent = theme.items.length;
 
+        dom.pageCount.textContent = theme.items.length;
+
         // Reset grid (keeping reference to dom.pagesGrid)
-        dom.pagesGrid.innerHTML = '';
+        // dom.pagesGrid.innerHTML = ''; // This might detach dropZone weirdly in some cases
+        // Safer:
+        dom.dropZone.remove(); // Explicitly remove to save listeners
+        dom.pagesGrid.innerHTML = ''; // Clear rest
+
 
         theme.items.forEach((item, idx) => {
             const card = document.createElement('div');
@@ -1308,12 +1474,18 @@
 
     // Update Drop Zone to handle folders
     function setupDropZone(el, callback) {
+        console.log('setupDropZone called on:', el);
         el.addEventListener('dragover', e => {
             e.preventDefault();
+            // console.log('dragover'); // Too noisy
             el.classList.add('drop-zone-active');
         });
-        el.addEventListener('dragleave', () => el.classList.remove('drop-zone-active'));
+        el.addEventListener('dragleave', () => {
+            console.log('dragleave');
+            el.classList.remove('drop-zone-active');
+        });
         el.addEventListener('drop', async e => {
+            console.log('drop event triggered');
             e.preventDefault();
             el.classList.remove('drop-zone-active');
 
